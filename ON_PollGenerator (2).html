@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ON PollGenerator</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #f6f6f6; }
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-thumb { background: #ddd; border-radius: 3px; }
+#apibar { background:#1a1a1a; padding:10px 32px; display:flex; align-items:center; gap:12px; }
+#apibar label { font-family:system-ui,sans-serif; font-size:11px; letter-spacing:2px; text-transform:uppercase; color:#c8a84b; white-space:nowrap; }
+#apibar input { flex:1; max-width:360px; background:#111; border:1px solid #333; border-radius:6px; color:#eee; font-size:13px; padding:6px 10px; font-family:monospace; }
+#apibar input:focus { outline:none; border-color:#c8a84b; }
+#apibar button { background:#c8a84b; color:#000; border:none; border-radius:6px; padding:6px 16px; font-size:12px; font-weight:700; cursor:pointer; }
+#apimsg { font-family:system-ui,sans-serif; font-size:11px; color:#666; }
+#apimsg.ok { color:#22c55e; }
+</style>
+</head>
+<body>
+<div id="apibar">
+  <label>API Sleutel</label>
+  <input type="password" id="apikey" placeholder="sk-ant-..."/>
+  <button onclick="saveKey()">Opslaan</button>
+  <span id="apimsg">Vul je Anthropic API-sleutel in om te beginnen</span>
+</div>
+<div id="root"></div>
+<script>
+window._key = localStorage.getItem('on_poll_key')||'';
+if (window._key) {
+  document.getElementById('apikey').value = window._key;
+  document.getElementById('apimsg').textContent = 'Sleutel actief';
+  document.getElementById('apimsg').className = 'ok';
+}
+function saveKey() {
+  var v = document.getElementById('apikey').value.trim();
+  if (!v.startsWith('sk-')) { document.getElementById('apimsg').textContent = 'Ongeldige sleutel'; return; }
+  window._key = v;
+  localStorage.setItem('on_poll_key', v);
+  document.getElementById('apimsg').textContent = 'Opgeslagen!';
+  document.getElementById('apimsg').className = 'ok';
+}
+</script>
+<script type="text/babel">
+const { useState } = React;
+
+const DATA = [{"id": 16, "question": "Warm de winter door — Hebt u er vertrouwen in dat kabinet Rutte IV ons allemaal warm de winter doorhelpt?", "date": "2022-09-16", "answers": [{"label": "Ja", "votes": 59, "pct": 2.8}, {"label": "Nee", "votes": 2052, "pct": 97.2}], "total": 2111}, {"id": 18, "question": "Bent u of kent u iemand die na het coronavaccin, en vermoedelijk dus door het vaccin, medische klachten heeft ontwikkeld?", "date": "2022-09-23", "answers": [{"label": "Ja", "votes": 239, "pct": 54.9}, {"label": "Nee", "votes": 196, "pct": 45.1}], "total": 435}, {"id": 19, "question": "Moet Ongehoord Nederland een uitzending met Sinterklaas en Zwarte Piet kunnen maken voor de kinderen?", "date": "2022-09-23", "answers": [{"label": "Ja", "votes": 466, "pct": 96.9}, {"label": "Nee", "votes": 15, "pct": 3.1}], "total": 481}, {"id": 22, "question": "Verdubbeling verbruiksbelasting op suikerhoudende dranken — Bent u voor of tegen dit belastingplan?", "date": "2022-09-23", "answers": [{"label": "Voor", "votes": 83, "pct": 20.1}, {"label": "Tegen", "votes": 329, "pct": 79.9}], "total": 412}, {"id": 24, "question": "“Door de euro hebben we recordinflatie”", "date": "2022-09-30", "answers": [{"label": "Ja", "votes": 320, "pct": 90.7}, {"label": "Nee", "votes": 18, "pct": 5.1}, {"label": "Weet niet / Geen mening", "votes": 15, "pct": 4.2}], "total": 353}, {"id": 25, "question": "Gaat het Nederland lukken om uitgeprocedeerde Marokkaanse asielzoekers terug te sturen naar Marokko?", "date": "2022-10-07", "answers": [{"label": "Ja", "votes": 66, "pct": 6.5}, {"label": "Nee", "votes": 931, "pct": 91.8}, {"label": "Geen mening", "votes": 17, "pct": 1.7}], "total": 1014}, {"id": 26, "question": "Moet Nederland wapens sturen om Oekraïne te steunen?", "date": "2022-10-14", "answers": [{"label": "Ja", "votes": 161, "pct": 14.5}, {"label": "Nee", "votes": 934, "pct": 84.4}, {"label": "Geen mening", "votes": 12, "pct": 1.1}], "total": 1107}, {"id": 27, "question": "Is er door de escalerende situatie in Oekraïne een risico op een kernoorlog?", "date": "2022-10-14", "answers": [{"label": "Ja", "votes": 693, "pct": 64.0}, {"label": "Nee", "votes": 359, "pct": 33.2}, {"label": "Geen mening", "votes": 30, "pct": 2.8}], "total": 1082}, {"id": 30, "question": "Denkt u dat onze overheid deze winter opnieuw coronamaatregelen gaat invoeren?", "date": "2022-10-21", "answers": [{"label": "Ja", "votes": 787, "pct": 77.5}, {"label": "Nee", "votes": 228, "pct": 22.5}], "total": 1015}, {"id": 31, "question": "Bestaat er een verband tussen de coronavaccinaties en de huidige oversterfte?", "date": "2022-10-28", "answers": [{"label": "Ja", "votes": 1274, "pct": 93.5}, {"label": "Nee", "votes": 89, "pct": 6.5}], "total": 1363}, {"id": 32, "question": "Maakt u zich zorgen over de toekomst van uw pensioen?", "date": "2022-11-04", "answers": [{"label": "Ja", "votes": 1064, "pct": 93.3}, {"label": "Nee", "votes": 76, "pct": 6.7}], "total": 1140}, {"id": 33, "question": "De Nederlandse regering stuurt ondanks alle kritiek op Qatar een delegatie naar het WK voetbal", "date": "2022-11-11", "answers": [{"label": "Goed idee", "votes": 213, "pct": 19.7}, {"label": "Slecht idee", "votes": 870, "pct": 80.3}], "total": 1083}, {"id": 34, "question": "Moet er meer geld komen voor de aanleg van wegen?", "date": "2022-11-18", "answers": [{"label": "Ja", "votes": 324, "pct": 60.1}, {"label": "Nee", "votes": 215, "pct": 39.9}], "total": 539}, {"id": 36, "question": "Bent u voor- of tegenstander van een vuurwerkverbod?", "date": "2022-11-25", "answers": [{"label": "voorstander", "votes": 280, "pct": 39.1}, {"label": "tegenstander", "votes": 436, "pct": 60.9}], "total": 716}, {"id": 37, "question": "Viert u nog Sinterklaas dit jaar?", "date": "2022-12-02", "answers": [{"label": "Ja", "votes": 295, "pct": 58.6}, {"label": "Nee", "votes": 208, "pct": 41.4}], "total": 503}, {"id": 38, "question": "Houdt u zich aan de snelheidslimiet van 100 km per uur?", "date": "2022-12-09", "answers": [{"label": "Ja", "votes": 218, "pct": 45.9}, {"label": "Nee", "votes": 257, "pct": 54.1}], "total": 475}, {"id": 39, "question": "Wat brengt 2023 Nederland? — Zal het volgend jaar beter of slechter gaan met Nederland?", "date": "2022-12-16", "answers": [{"label": "Beter", "votes": 34, "pct": 8.8}, {"label": "Slechter", "votes": 353, "pct": 91.2}], "total": 387}, {"id": 40, "question": "Blijft kabinet Rutte IV zitten na de verkiezingen van 15 maart?", "date": "2023-01-26", "answers": [{"label": "Ja", "votes": 601, "pct": 50.4}, {"label": "Nee", "votes": 591, "pct": 49.6}], "total": 1192}, {"id": 41, "question": "Seksuele voorlichting op de basisschool — Moeten kinderen al op de basisschool seksuele voorlichting krijgen?", "date": "2023-02-02", "answers": [{"label": "Ja", "votes": 149, "pct": 24.7}, {"label": "Nee", "votes": 455, "pct": 75.3}], "total": 604}, {"id": 42, "question": "Kiesdrempel — Bent u voor of tegen de invoering van een kiesdrempel?", "date": "2023-02-10", "answers": [{"label": "Voor", "votes": 204, "pct": 31.0}, {"label": "Tegen", "votes": 455, "pct": 69.0}], "total": 659}, {"id": 45, "question": "Herinvoering dienstplicht — Bent u voor het herinvoeren van de dienstplicht?", "date": "2023-02-17", "answers": [{"label": "Ja", "votes": 303, "pct": 44.8}, {"label": "Nee", "votes": 374, "pct": 55.2}], "total": 677}, {"id": 47, "question": "Smartphone uit het klaslokaal — Moet de smartphone uit het klaslokaal worden geweerd?", "date": "2023-02-24", "answers": [{"label": "Ja", "votes": 456, "pct": 94.0}, {"label": "Nee", "votes": 29, "pct": 6.0}], "total": 485}, {"id": 48, "question": "Boeren of huizen? — Moeten onze boeren het veld ruimen om plaats te maken voor woningbouw?", "date": "2023-03-03", "answers": [{"label": "Ja", "votes": 17, "pct": 2.5}, {"label": "Nee", "votes": 667, "pct": 97.5}], "total": 684}, {"id": 49, "question": "15 maart Provinciale Statenverkiezingen", "date": "2023-03-10", "answers": [{"label": "VVD", "votes": 2, "pct": 0.3}, {"label": "PVV", "votes": 179, "pct": 24.6}, {"label": "SP", "votes": 5, "pct": 0.7}, {"label": "PvdD", "votes": 3, "pct": 0.4}, {"label": "FvD", "votes": 391, "pct": 53.7}, {"label": "JA21", "votes": 56, "pct": 7.7}, {"label": "SGP", "votes": 9, "pct": 1.2}, {"label": "BBB", "votes": 50, "pct": 6.9}, {"label": "BVNL", "votes": 25, "pct": 3.4}, {"label": "Anders", "votes": 8, "pct": 1.1}], "total": 728}, {"id": 50, "question": "Uitslag verkiezingen: moet het kabinet aftreden? — Moet het kabinet aftreden?", "date": "2023-03-17", "answers": [{"label": "Ja", "votes": 1071, "pct": 96.3}, {"label": "Nee", "votes": 41, "pct": 3.7}], "total": 1112}, {"id": 53, "question": "Problemen bij banken", "date": "2023-03-24", "answers": [{"label": "Ja", "votes": 248, "pct": 20.1}, {"label": "Nee", "votes": 988, "pct": 79.9}], "total": 1236}, {"id": 55, "question": "Stikstofbeleid na verkiezingen — Moet het stikstofbeleid nu volledig van tafel?", "date": "2023-03-31", "answers": [{"label": "Ja", "votes": 1100, "pct": 96.1}, {"label": "Nee", "votes": 45, "pct": 3.9}], "total": 1145}, {"id": 57, "question": "Privacy — Vindt u dat uw privacy voldoende is gewaarborgd?", "date": "2023-04-07", "answers": [{"label": "Ja", "votes": 30, "pct": 4.3}, {"label": "Nee", "votes": 669, "pct": 95.7}], "total": 699}, {"id": 58, "question": "Vluchtelingenverdrag — Moet Nederland het Vluchtelingenverdrag opzeggen?", "date": "2023-04-14", "answers": [{"label": "Ja", "votes": 1116, "pct": 97.1}, {"label": "Nee", "votes": 33, "pct": 2.9}], "total": 1149}, {"id": 59, "question": "Staatsvorm — Als u zou mogen kiezen: naar welke staatsvorm gaat uw voorkeur dan uit?", "date": "2023-04-21", "answers": [{"label": "constitutionele monarchie", "votes": 271, "pct": 19.8}, {"label": "republiek", "votes": 1100, "pct": 80.2}], "total": 1371}, {"id": 62, "question": "Het publieke bestel", "date": "2023-04-26", "answers": [{"label": "Slechts één staatsomroep", "votes": 25, "pct": 3.1}, {"label": " Verschillende omroepen met ieder zijn eigen signatuur", "votes": 794, "pct": 96.9}], "total": 819}, {"id": 65, "question": "Vakantiebudget — Bespaart u op uw zomervakantie?", "date": "2023-05-05", "answers": [{"label": "Ja", "votes": 341, "pct": 59.2}, {"label": "Nee", "votes": 235, "pct": 40.8}], "total": 576}, {"id": 66, "question": "Cryptovaluta — Vindt u crypto’s een betrouwbare belegging?", "date": "2023-05-12", "answers": [{"label": "Ja", "votes": 119, "pct": 18.1}, {"label": "Nee", "votes": 539, "pct": 81.9}], "total": 658}, {"id": 67, "question": "Asielzoekers — Moeten we asielzoekers blijven opvangen?", "date": "2023-05-17", "answers": [{"label": "Ja", "votes": 82, "pct": 5.7}, {"label": "Nee", "votes": 1364, "pct": 94.3}], "total": 1446}, {"id": 68, "question": "Klimaat", "date": "2023-05-26", "answers": [{"label": "Ja", "votes": 8, "pct": 1.0}, {"label": "Nee", "votes": 763, "pct": 99.0}], "total": 771}, {"id": 71, "question": "Huishoudboekje — Kan uw huishouden rondkomen van één inkomen?", "date": "2023-06-02", "answers": [{"label": "Ja", "votes": 187, "pct": 39.0}, {"label": "Nee", "votes": 292, "pct": 61.0}], "total": 479}, {"id": 72, "question": "Ik vertrek — Als u de mogelijkheid zou hebben, zou u dan emigreren?", "date": "2023-06-09", "answers": [{"label": "Ja", "votes": 904, "pct": 81.4}, {"label": "Nee", "votes": 207, "pct": 18.6}], "total": 1111}, {"id": 73, "question": "Samenwerking op rechts — Lukt het rechts ook om samen te werken bij de aankomende Tweede Kamerverkiezingen?", "date": "2023-09-01", "answers": [{"label": "Ja", "votes": 727, "pct": 61.1}, {"label": "Nee", "votes": 463, "pct": 38.9}], "total": 1190}, {"id": 75, "question": "Woningnood — Wat zou u als eerste doen om het woningtekort terug te dringen?", "date": "2023-09-08", "answers": [{"label": "De grenzen dicht voor immigranten en asielzoekers", "votes": 652, "pct": 77.6}, {"label": "Stikstofbeperkingen opheffen en woningen bijbouwen", "votes": 188, "pct": 22.4}], "total": 840}, {"id": 76, "question": "Verkiezingsthema TK2023 — Wat is voor u het belangrijkste thema deze verkiezingen?", "date": "2023-09-29", "answers": [{"label": "Asielcrisis", "votes": 525, "pct": 51.7}, {"label": "Klimaat", "votes": 28, "pct": 2.8}, {"label": "Koopkracht", "votes": 33, "pct": 3.2}, {"label": "Bestaanszekerheid", "votes": 81, "pct": 8.0}, {"label": "Bestuurscultuur", "votes": 105, "pct": 10.3}, {"label": "Wonen", "votes": 15, "pct": 1.5}, {"label": "Veiligheid", "votes": 26, "pct": 2.6}, {"label": "Anders namelijk", "votes": 203, "pct": 20.0}], "total": 1016}, {"id": 77, "question": "Klimaatpaniek? — Maakt u zich zorgen om het klimaat?", "date": "2023-10-06", "answers": [{"label": "Ja", "votes": 58, "pct": 5.4}, {"label": "Nee", "votes": 1019, "pct": 94.6}], "total": 1077}, {"id": 78, "question": "Kabinet Timmermans I? — Ziet u een kabinet Timmermans I zitten?", "date": "2023-10-13", "answers": [{"label": "Ja", "votes": 8, "pct": 0.6}, {"label": "Nee", "votes": 1262, "pct": 99.4}], "total": 1270}, {"id": 80, "question": "Leefbaarheid — Bent u tevreden met de leefbaarheid in uw stad of dorp?", "date": "2023-10-20", "answers": [{"label": "Ja", "votes": 643, "pct": 61.3}, {"label": "Nee", "votes": 406, "pct": 38.7}], "total": 1049}, {"id": 81, "question": "Stemwijzer — Vindt u Stemwijzer het beste middel om uw keuze mee te bepalen?", "date": "2023-10-27", "answers": [{"label": "Ja", "votes": 86, "pct": 6.9}, {"label": "Nee", "votes": 1168, "pct": 93.1}], "total": 1254}, {"id": 82, "question": "Vrijuit spreken — Hebt u het gevoel dat u alles kunt zeggen?", "date": "2023-11-03", "answers": [{"label": "Ja", "votes": 209, "pct": 15.7}, {"label": "Nee", "votes": 1119, "pct": 84.3}], "total": 1328}, {"id": 83, "question": "Stemplicht — Moet er een stemplicht komen?", "date": "2023-11-10", "answers": [{"label": "Ja", "votes": 485, "pct": 46.4}, {"label": "Nee", "votes": 561, "pct": 53.6}], "total": 1046}, {"id": 85, "question": "Topprioriteit volgende kabinet — Welk probleem moet het volgende kabinet naar uw mening als eerste aanpakken?", "date": "2023-11-17", "answers": [{"label": "1. Massa-immigratie", "votes": 841, "pct": 64.8}, {"label": "2. Woningnood", "votes": 28, "pct": 2.2}, {"label": "3. Koopkracht", "votes": 22, "pct": 1.7}, {"label": "4. Stikstof- & klimaatbeleid stoppen", "votes": 262, "pct": 20.2}, {"label": "5. Anders namelijk", "votes": 145, "pct": 11.2}], "total": 1298}, {"id": 86, "question": "Kosten klimaatbeleid — Moet (een eventuele) premier Wilders de geldkraan voor “klimaatmaatregelen” helemaal dichtdraaien?", "date": "2023-11-24", "answers": [{"label": "Ja", "votes": 1577, "pct": 86.8}, {"label": "Nee", "votes": 239, "pct": 13.2}], "total": 1816}, {"id": 87, "question": "Vaccineren — Zou u in het geval van een nieuwe coronapandemie (weer) een vaccin nemen?", "date": "2023-12-01", "answers": [{"label": "Ja", "votes": 140, "pct": 6.5}, {"label": "Nee", "votes": 2027, "pct": 93.5}], "total": 2167}, {"id": 88, "question": "Transvrouwen in vrouwengevangenis — Vindt u dat criminele transvrouwen (mannen die zich als vrouw identificeren) mogen eisen dat ze na hun veroordeling in een vrouwengevangenis worden geplaatst?", "date": "2023-12-08", "answers": [{"label": "Ja", "votes": 50, "pct": 3.8}, {"label": "Nee", "votes": 1272, "pct": 96.2}], "total": 1322}, {"id": 90, "question": "Nexit? — Vindt u dat Nederland in de Europese Unie moet blijven of eruit moet stappen?", "date": "2023-12-15", "answers": [{"label": "In de EU blijven", "votes": 173, "pct": 7.9}, {"label": "Uit de EU stappen", "votes": 2005, "pct": 92.1}], "total": 2178}, {"id": 92, "question": "AZC in uw woonplaats — Kijkt u al uit naar de komst van een asielzoekerscentrum in uw woonplaats?", "date": "2024-01-26", "answers": [{"label": "Ja", "votes": 23, "pct": 1.3}, {"label": "Nee", "votes": 1693, "pct": 98.7}], "total": 1716}, {"id": 93, "question": "Redt CO2-belasting ons klimaat? — Gaat een CO2-belasting ons klimaat redden?", "date": "2024-02-02", "answers": [{"label": "Ja", "votes": 10, "pct": 0.8}, {"label": "Nee", "votes": 1177, "pct": 99.2}], "total": 1187}, {"id": 94, "question": "Zorgen om eigen financiële situatie? — Maakt u zich nu zorgen om uw eigen financiële situatie?", "date": "2024-02-09", "answers": [{"label": "Ja", "votes": 547, "pct": 65.0}, {"label": "Nee", "votes": 295, "pct": 35.0}], "total": 842}, {"id": 97, "question": "Op wie zou u stemmen? — Naar wie zou uw stem gaan als u mee mocht doen aan de Amerikaanse verkiezingen?", "date": "2024-02-16", "answers": [{"label": "1. Joe Biden (Dem.)", "votes": 15, "pct": 1.2}, {"label": "2. Donald Trump (Rep.)", "votes": 694, "pct": 54.0}, {"label": "3. Robert F. Kennedy jr. (Onafh.)", "votes": 474, "pct": 36.9}, {"label": "4. Nikky Haley (Rep.)", "votes": 103, "pct": 8.0}], "total": 1286}, {"id": 98, "question": "Oekraïners terugsturen om aan _x0003_het front te dienen? — Moet Nederland dienstplichtige Oekraïners terugsturen om aan het front te dienen?", "date": "2024-02-23", "answers": [{"label": "Ja", "votes": 604, "pct": 61.6}, {"label": "Nee", "votes": 376, "pct": 38.4}], "total": 980}, {"id": 99, "question": "Kabinet over rechts mogelijk? — Denkt u dat er nog een kabinet over rechts mogelijk is in welke vorm dan ook?", "date": "2024-03-01", "answers": [{"label": "Ja", "votes": 652, "pct": 67.6}, {"label": "Nee", "votes": 312, "pct": 32.4}], "total": 964}, {"id": 100, "question": "Bent u nog boos over het coronabeleid? — Bent u nog boos over het coronabeleid van de Nederlandse overheid in 2020-2022?", "date": "2024-03-08", "answers": [{"label": "Ja", "votes": 1365, "pct": 93.8}, {"label": "Nee", "votes": 91, "pct": 6.2}], "total": 1456}, {"id": 101, "question": "Vindt u het Nederlandse belastingstelsel eerlijk?", "date": "2024-03-15", "answers": [{"label": "Ja", "votes": 19, "pct": 2.7}, {"label": "Nee", "votes": 676, "pct": 97.3}], "total": 695}, {"id": 102, "question": "Raakt Nederland dit jaar officieel in oorlog?", "date": "2024-03-22", "answers": [{"label": "Ja", "votes": 199, "pct": 35.6}, {"label": "Nee", "votes": 360, "pct": 64.4}], "total": 559}, {"id": 103, "question": "Verplicht elektrisch rijden — Heeft u zin om verplicht elektrisch te moeten gaan rijden?", "date": "2024-03-29", "answers": [{"label": "Ja", "votes": 24, "pct": 1.5}, {"label": "Nee", "votes": 1625, "pct": 98.5}], "total": 1649}, {"id": 104, "question": "Heeft u al Bitcoins of goud?", "date": "2024-04-05", "answers": [{"label": "Ja", "votes": 317, "pct": 34.5}, {"label": "Nee", "votes": 603, "pct": 65.5}], "total": 920}, {"id": 105, "question": "Bent u tevreden met de kwaliteit van de zorg in ons land?", "date": "2024-04-12", "answers": [{"label": "Ja", "votes": 192, "pct": 21.6}, {"label": "Nee", "votes": 695, "pct": 78.4}], "total": 887}, {"id": 106, "question": "Is Nederland een narcostaat geworden?", "date": "2024-04-19", "answers": [{"label": "Ja", "votes": 761, "pct": 90.5}, {"label": "Nee", "votes": 80, "pct": 9.5}], "total": 841}, {"id": 107, "question": "Hoe zou u de asielinstroom aanpakken?", "date": "2024-04-26", "answers": [{"label": "1) Huidig beleid voortzetten", "votes": 4, "pct": 0.2}, {"label": "2) Een maximum instellen van 10.000 aanvragen per jaar", "votes": 247, "pct": 13.2}, {"label": "3) Verdragen opzeggen en geen enkele asielzoeker meer opnemen", "votes": 1618, "pct": 86.6}], "total": 1869}, {"id": 108, "question": "Demonisering van rechtse politici sinds moord op Fortuyn afgenomen? — Is de demonisering van rechtse politici sinds de moord op Fortuyn afgenomen?", "date": "2024-05-03", "answers": [{"label": "Ja", "votes": 24, "pct": 1.6}, {"label": "Nee", "votes": 1451, "pct": 98.4}], "total": 1475}, {"id": 110, "question": "Wat moet er gebeuren met de Nederlandse Publieke Omroep (NPO)?", "date": "2024-05-10", "answers": [{"label": "1) Laten zoals het is", "votes": 34, "pct": 2.3}, {"label": "2) Flink hervormen (bijv. nog maar één net - flink minder budget - etc.)", "votes": 875, "pct": 59.0}, {"label": "3) Volledig opheffen", "votes": 574, "pct": 38.7}], "total": 1483}, {"id": 111, "question": "Bent u tevreden met de kwaliteit van ons onderwijs?", "date": "2024-05-17", "answers": [{"label": "Ja", "votes": 34, "pct": 3.3}, {"label": "Nee", "votes": 984, "pct": 96.7}], "total": 1018}, {"id": 114, "question": "Wat is voor u het belangrijkste thema bij de verkiezingen voor het Europees Parlement?", "date": "2024-05-24", "answers": [{"label": "Migratie", "votes": 827, "pct": 52.4}, {"label": "Klimaat & Energie", "votes": 63, "pct": 4.0}, {"label": "Toekomst boeren", "votes": 101, "pct": 6.4}, {"label": "NEXIT", "votes": 586, "pct": 37.2}], "total": 1577}, {"id": 115, "question": "Binnen een jaar Nederlandse troepen naar het front? — Denkt u dat er binnen nu en een jaar Nederlandse troepen naar het front zullen worden gestuurd?", "date": "2024-05-31", "answers": [{"label": "Ja", "votes": 483, "pct": 40.9}, {"label": "Nee", "votes": 697, "pct": 59.1}], "total": 1180}, {"id": 116, "question": "Verdient Ongehoord Nieuws een plek in de avondprogrammering van de NPO?", "date": "2024-06-07", "answers": [{"label": "Ja", "votes": 1543, "pct": 99.7}, {"label": "Nee", "votes": 5, "pct": 0.3}], "total": 1548}, {"id": 117, "question": "Hoe denkt u dat we die prijsstijging tegen kunnen gaan?", "date": "2024-09-27", "answers": [{"label": "1) Als we gezonder gaan leven", "votes": 49, "pct": 13.4}, {"label": "2) Als we de zorg beter en efficiënter maken", "votes": 216, "pct": 59.0}, {"label": "3) Daar hebben we helemaal geen invloed op", "votes": 101, "pct": 27.6}], "total": 366}, {"id": 118, "question": "Op wie zou u stemmen?", "date": "2024-10-31", "answers": [{"label": "Trump", "votes": 647, "pct": 94.3}, {"label": "Harris", "votes": 39, "pct": 5.7}], "total": 686}, {"id": 119, "question": "Wat moeten we met de wolven in Nederland?", "date": "2025-02-05", "answers": [{"label": "Niets", "votes": 175, "pct": 4.3}, {"label": "Samenleven", "votes": 688, "pct": 16.8}, {"label": "Afschieten", "votes": 3239, "pct": 79.0}], "total": 4102}, {"id": 120, "question": "Hoeveel duurder zijn de boodschappen de afgelopen 3 jaar geworden denk jij?", "date": "2025-02-12", "answers": [{"label": "0.1", "votes": 67, "pct": 1.7}, {"label": "0.18", "votes": 808, "pct": 20.5}, {"label": "0.24", "votes": 3063, "pct": 77.8}], "total": 3938}, {"id": 121, "question": "Moeten de gasvelden in Groningen weer open?", "date": "2025-02-26", "answers": [{"label": "Ja", "votes": 2110, "pct": 92.8}, {"label": "Nee", "votes": 163, "pct": 7.2}], "total": 2273}, {"id": 122, "question": "Moet Nederland, net als in WO1, neutraal zijn?", "date": "2025-03-05", "answers": [{"label": "Ja", "votes": 3209, "pct": 87.9}, {"label": "Nee", "votes": 441, "pct": 12.1}], "total": 3650}, {"id": 123, "question": "Vindt u dat Syriërs in Nederland ondanks alle onrust in het land verplicht terug moeten keren?", "date": "2025-03-12", "answers": [{"label": "Ja", "votes": 2541, "pct": 77.9}, {"label": "Nee", "votes": 720, "pct": 22.1}], "total": 3261}, {"id": 124, "question": "Moet de overheid Extinction Rebellion verbieden?", "date": "2025-03-21", "answers": [{"label": "Ja", "votes": 903, "pct": 85.6}, {"label": "Nee", "votes": 152, "pct": 14.4}], "total": 1055}, {"id": 125, "question": "Wie zou volgens jou verantwoordelijk moeten zijn voor seksuele voorlichting aan kinderen?", "date": "2025-03-26", "answers": [{"label": "De overheid", "votes": 40, "pct": 1.1}, {"label": "De scholen", "votes": 121, "pct": 3.2}, {"label": "De ouders", "votes": 3635, "pct": 95.8}], "total": 3796}, {"id": 127, "question": "Faber wil geen lintjes geven. Terecht of niet?", "date": "2025-04-02", "answers": [{"label": "Ja", "votes": 1622, "pct": 87.4}, {"label": "Nee", "votes": 234, "pct": 12.6}], "total": 1856}, {"id": 128, "question": "Bent u voor of tegen een vuurwerkverbod?", "date": "2025-04-07", "answers": [{"label": "Voor", "votes": 1627, "pct": 41.3}, {"label": "Tegen", "votes": 2313, "pct": 58.7}], "total": 3940}, {"id": 129, "question": "Rusland veroorzaakte zelf de uitbreiding van de NAVO", "date": "2025-04-09", "answers": [{"label": "Eens", "votes": 341, "pct": 17.0}, {"label": "Oneens", "votes": 1662, "pct": 83.0}], "total": 2003}, {"id": 130, "question": "Oekraïne mag geen lid worden van de EU en van de NAVO. Anders komt er nooit vrede", "date": "2025-04-09", "answers": [{"label": "Eens", "votes": 1673, "pct": 90.9}, {"label": "Oneens", "votes": 167, "pct": 9.1}], "total": 1840}, {"id": 131, "question": "Rusland is verantwoordelijk voor MH17 en moet daarvoor schuld bekennen, excuses maken en compensatie bieden, voordat we betere betrekkingen aangaan met Moskou", "date": "2025-04-09", "answers": [{"label": "Eens", "votes": 406, "pct": 24.0}, {"label": "Oneens", "votes": 1287, "pct": 76.0}], "total": 1693}, {"id": 132, "question": "De vier door Rusland bezette regio's moeten zich kunnen afsplitsen van Oekraïne, want dat is wat de mensen in die gebieden willen", "date": "2025-04-09", "answers": [{"label": "Eens", "votes": 1511, "pct": 90.0}, {"label": "Oneens", "votes": 168, "pct": 10.0}], "total": 1679}, {"id": 133, "question": "Denkt u dat de verstedelijking van Nederland nog te stoppen is?", "date": "2025-04-14", "answers": [{"label": "Ja", "votes": 1590, "pct": 59.4}, {"label": "Nee", "votes": 1087, "pct": 40.6}], "total": 2677}, {"id": 134, "question": "Bent u trots dat de komende NAVO-top in Den Haag wordt gehouden?", "date": "2025-04-16", "answers": [{"label": "Ja", "votes": 119, "pct": 3.1}, {"label": "Nee", "votes": 3720, "pct": 96.9}], "total": 3839}, {"id": 135, "question": "Moeten we het Koningshuis afschaffen?", "date": "2025-04-23", "answers": [{"label": "Ja", "votes": 3063, "pct": 75.4}, {"label": "Nee", "votes": 997, "pct": 24.6}], "total": 4060}, {"id": 136, "question": "Moet de overheid zich actief inzetten om racisme tegen te gaan?", "date": "2025-04-28", "answers": [{"label": "Ja", "votes": 656, "pct": 23.9}, {"label": "Nee", "votes": 2086, "pct": 76.1}], "total": 2742}, {"id": 137, "question": "Kan Europa zich zonder Amerika verdedigen tegen Rusland?", "date": "2025-04-30", "answers": [{"label": "Ja", "votes": 746, "pct": 27.7}, {"label": "Nee", "votes": 1946, "pct": 72.3}], "total": 2692}, {"id": 138, "question": "Kan de islam een positieve invloed hebben op het Westen?", "date": "2025-05-05", "answers": [{"label": "Ja", "votes": 83, "pct": 1.9}, {"label": "Nee", "votes": 4125, "pct": 93.3}, {"label": "Misschien", "votes": 214, "pct": 4.8}], "total": 4422}, {"id": 139, "question": "Speelt u mee met de Postcodeloterij?", "date": "2025-05-07", "answers": [{"label": "Ja", "votes": 752, "pct": 20.6}, {"label": "Nee", "votes": 2903, "pct": 79.4}], "total": 3655}, {"id": 140, "question": "Verdeelt het Israël-Palestina-conflict Nederland?", "date": "2025-05-19", "answers": [{"label": "Ja", "votes": 2554, "pct": 82.9}, {"label": "Nee", "votes": 527, "pct": 17.1}], "total": 3081}, {"id": 141, "question": "Is de zorg in Nederland verbeterd of verslechterd?", "date": "2025-05-21", "answers": [{"label": "Verbeterd", "votes": 124, "pct": 4.2}, {"label": "Verslechterd", "votes": 2858, "pct": 95.8}], "total": 2982}, {"id": 142, "question": "Leidt online identificatieplicht tot meer online censuur en verlies van privacy? — Leidt online identificatieplicht tot meer online censuur?", "date": "2025-05-26", "answers": [{"label": "Ja", "votes": 2579, "pct": 84.0}, {"label": "Nee", "votes": 325, "pct": 10.6}, {"label": "Weet ik niet", "votes": 167, "pct": 5.4}], "total": 3071}, {"id": 144, "question": "Wat vindt u van de soevereinen?", "date": "2025-06-02", "answers": [{"label": "Ik beschouw mezelf als soeverein", "votes": 289, "pct": 8.6}, {"label": "Ik steun en begrijp de soevereinen maar hoor er zelf niet bij", "votes": 2121, "pct": 62.8}, {"label": "Ik ben tegen de soevereinen en hun gedachtegoed", "votes": 968, "pct": 28.7}], "total": 3378}, {"id": 145, "question": "Heeft Wilders de coalitie laten vallen of heeft de coalitie Wilders laten vallen?", "date": "2025-06-04", "answers": [{"label": "Wilders heeft de coalitie laten vallen", "votes": 481, "pct": 11.9}, {"label": "De coalitie heeft Wilders laten vallen", "votes": 3571, "pct": 88.1}], "total": 4052}, {"id": 146, "question": "Het is goed dat burgers het heft in eigen handen nemen en grenscontroles uitvoeren", "date": "2025-06-09", "answers": [{"label": "Eens", "votes": 3329, "pct": 86.6}, {"label": "Oneens", "votes": 517, "pct": 13.4}], "total": 3846}, {"id": 147, "question": "Gelooft u in God?", "date": "2025-06-11", "answers": [{"label": "Ja altijd al gedaan", "votes": 1709, "pct": 51.5}, {"label": "Ja recent bekeerd", "votes": 100, "pct": 3.0}, {"label": "Nee nooit gedaan", "votes": 1294, "pct": 39.0}, {"label": "Nee recent van geloof afgevallen", "votes": 216, "pct": 6.5}], "total": 3319}, {"id": 148, "question": "Welke oorlog vormt volgens u een grotere bedreiging voor Nederland?", "date": "2025-06-16", "answers": [{"label": "De oorlog in Oekraïne", "votes": 1196, "pct": 38.1}, {"label": "De oorlog in het Midden-Oosten", "votes": 1940, "pct": 61.9}], "total": 3136}, {"id": 149, "question": "Staat u achter een volledig wapenembargo tegen Israël? — Staat u achter een volledig wapenembargo vanuit Nederland naar Israël?", "date": "2025-06-23", "answers": [{"label": "Ja", "votes": 743, "pct": 19.2}, {"label": "Nee", "votes": 3131, "pct": 80.8}], "total": 3874}, {"id": 150, "question": "Welk onderwerp wilt u dat we in Ongehoord Nieuws behandelen?", "date": "2025-09-02", "answers": [{"label": "AZC in de buurt", "votes": 221, "pct": 12.9}, {"label": "Omvolking", "votes": 770, "pct": 45.1}, {"label": "Te dure boodschappen", "votes": 97, "pct": 5.7}, {"label": "Geen huizen beschikbaar", "votes": 72, "pct": 4.2}, {"label": "Stijgende belastingen", "votes": 271, "pct": 15.9}, {"label": "Verkiezingen", "votes": 226, "pct": 13.2}, {"label": "Buitenlandse conflicten", "votes": 52, "pct": 3.0}], "total": 1709}, {"id": 151, "question": "Wat staat een rechtse coalitie in de weg?", "date": "2025-09-08", "answers": [{"label": "Gebrek aan overstijgend leiderschap op rechts", "votes": 1125, "pct": 34.6}, {"label": "De partijen gunnen elkaar niets", "votes": 1276, "pct": 39.3}, {"label": "De ideologische verschillen zijn onoverbrugbaar", "votes": 498, "pct": 15.3}, {"label": "Niemand nog aan gedacht", "votes": 350, "pct": 10.8}], "total": 3249}, {"id": 152, "question": "Bent u er zelf het afgelopen jaar financieel op vooruit- of achteruitgegaan?", "date": "2025-09-15", "answers": [{"label": "Ik ben erop vooruitgegaan", "votes": 35, "pct": 7.1}, {"label": "Ik ben erop achteruitgegaan", "votes": 374, "pct": 75.4}, {"label": "Gelijk gebleven", "votes": 87, "pct": 17.5}], "total": 496}, {"id": 153, "question": "Bent u bereid een digitale ID te accepteren als dit leidt tot minder immigratie?", "date": "2025-09-29", "answers": [{"label": "Ja", "votes": 4, "pct": 17.4}, {"label": "Nee", "votes": 19, "pct": 82.6}], "total": 23}, {"id": 154, "question": "Wie van deze lijsttrekkers zou u kiezen als premier?", "date": "2025-10-01", "answers": [{"label": "Henri Bontenbal", "votes": 142, "pct": 17.9}, {"label": "Dilan Yeşilgöz", "votes": 633, "pct": 79.8}, {"label": "Frans Timmermans", "votes": 10, "pct": 1.3}, {"label": "Rob Jetten", "votes": 8, "pct": 1.0}], "total": 793}, {"id": 155, "question": "Vindt u dat Israël zich schuldig maakt aan genocide?", "date": "2025-10-06", "answers": [{"label": "Ja", "votes": 424, "pct": 29.0}, {"label": "Nee", "votes": 1037, "pct": 71.0}], "total": 1461}, {"id": 156, "question": "Je geld of je uitzicht?", "date": "2025-10-08", "answers": [{"label": "Ja", "votes": 51, "pct": 3.4}, {"label": "Nee", "votes": 1436, "pct": 96.6}], "total": 1487}, {"id": 157, "question": "Wat zie jij als de belangrijkste reden voor het woningtekort?", "date": "2025-10-13", "answers": [{"label": "Stikstof", "votes": 305, "pct": 9.8}, {"label": "Asielmigratie", "votes": 2374, "pct": 76.3}, {"label": "Arbeidsmigratie", "votes": 103, "pct": 3.3}, {"label": "Toename van scheidingen/eenoudergezinnen", "votes": 71, "pct": 2.3}, {"label": "Gebrek aan bouwen", "votes": 144, "pct": 4.6}, {"label": "Bezwaar tegen bouwplannen", "votes": 116, "pct": 3.7}], "total": 3113}, {"id": 158, "question": "Bent u bereid een digitale centrale-bankmunt (CBDC) te accepteren als dit leidt tot minder fraude?", "date": "2025-10-15", "answers": [{"label": "Ja", "votes": 99, "pct": 2.7}, {"label": "Nee", "votes": 3570, "pct": 97.3}], "total": 3669}, {"id": 159, "question": "Wat moet er volgens u gebeuren met internationale verdragen die nationaal beleid in de weg staan?", "date": "2025-10-20", "answers": [{"label": "Opgezegd", "votes": 2548, "pct": 75.0}, {"label": "Opengesteld en aangepast", "votes": 848, "pct": 25.0}], "total": 3396}, {"id": 160, "question": "Moet verhoging van de NAVO-norm betaald worden door bezuinigingen op zorg?", "date": "2025-10-22", "answers": [{"label": "Ja goed idee", "votes": 59, "pct": 1.7}, {"label": "Nee elders bezuinigen", "votes": 823, "pct": 23.5}, {"label": "Geen verhoging van de NAVO-norm naar 5%", "votes": 2620, "pct": 74.8}], "total": 3502}, {"id": 162, "question": "Heeft u er vertrouwen in dat uw stem aanstaande woensdag uitmaakt?", "date": "2025-10-27", "answers": [{"label": "Ja", "votes": 1239, "pct": 31.8}, {"label": "Nee maar ik stem wel", "votes": 2551, "pct": 65.5}, {"label": "Nee ik blijf daarom thuis", "votes": 102, "pct": 2.6}], "total": 3892}, {"id": 163, "question": "Wat vind jij de meest effectieve manier van verzet tegen de komst van een AZC?", "date": "2025-11-03", "answers": [{"label": "Demonstreren", "votes": 1474, "pct": 48.6}, {"label": "Inspreken bij een raadsvergadering", "votes": 518, "pct": 17.1}, {"label": "Juridische stappen ondernemen", "votes": 577, "pct": 19.0}, {"label": "Anders", "votes": 462, "pct": 15.2}], "total": 3031}, {"id": 165, "question": "Wat vind jij dat er moet gebeuren met de islamitische gebedsoproepen in Nederland?", "date": "2025-11-05", "answers": [{"label": "De versterkte oproep toestaan (zoals nu het geval is)", "votes": 30, "pct": 0.9}, {"label": "Alleen een onversterkte oproep toestaan", "votes": 642, "pct": 18.8}, {"label": "De oproep volledig verbieden", "votes": 2735, "pct": 80.3}], "total": 3407}, {"id": 166, "question": "Hoe ga jij deze winter om met de hoge energieprijzen?", "date": "2025-11-26", "answers": [{"label": "Verwarm huis zoals altijd", "votes": 1178, "pct": 42.0}, {"label": "Verwarming blijft uit", "votes": 177, "pct": 6.3}, {"label": "Verwarm minder/lager", "votes": 1452, "pct": 51.7}], "total": 2807}, {"id": 167, "question": "Zou een vleesbelasting uw consumptiekeuze beïnvloeden?", "date": "2025-12-08", "answers": [{"label": "Ik ga dan minder vlees eten", "votes": 276, "pct": 8.0}, {"label": "Ik ga meer vlees eten", "votes": 221, "pct": 6.4}, {"label": "Ik blijf dezelfde hoeveelheid eten", "votes": 2913, "pct": 84.7}, {"label": "Ik zal stoppen met vlees eten", "votes": 31, "pct": 0.9}], "total": 3441}, {"id": 168, "question": "Moet Rechts keiharde oppositie zijn of constructief samenwerken?", "date": "2026-02-09", "answers": [{"label": "Keiharde oppositie voeren", "votes": 2786, "pct": 84.3}, {"label": "Constructief samenwerken", "votes": 517, "pct": 15.7}], "total": 3303}, {"id": 169, "question": "Denkt u dat Jeffrey Epstein samenwerkte met één of meer inlichtingendiensten?", "date": "2026-02-11", "answers": [{"label": "Nee", "votes": 306, "pct": 15.6}, {"label": "Ja vooral met de Amerikaanse inlichtingendienst", "votes": 712, "pct": 36.3}, {"label": "Ja vooral met de Russische inlichtingendienst", "votes": 88, "pct": 4.5}, {"label": "Ja vooral met de Israëlische inlichtingendienst", "votes": 855, "pct": 43.6}], "total": 1961}, {"id": 170, "question": "Zou Nederland de vervolgde blanke ‘Afrikaners’ met voorrang asiel moeten verlenen? — Zou Nederland vervolgde blanke ‘Afrikaners’ met voorrang asiel moeten verlenen?", "date": "2026-02-16", "answers": [{"label": "Ja", "votes": 2443, "pct": 77.4}, {"label": "Nee", "votes": 715, "pct": 22.6}], "total": 3158}, {"id": 171, "question": "Is €1000 subsidie genoeg om een AZC in uw buurt te accepteren?", "date": "2026-02-18", "answers": [{"label": "Ja ik was al voorstander van AZC", "votes": 1, "pct": 0.0}, {"label": "Ja €1000 subsidie overtuigt mij", "votes": 4, "pct": 0.1}, {"label": "Nee €1000 is niet genoeg", "votes": 14, "pct": 0.5}, {"label": "Nee veiligheid is taak overheid", "votes": 275, "pct": 8.9}, {"label": "Nee ik ben tegen komst AZC's", "votes": 2811, "pct": 90.5}], "total": 3105}, {"id": 172, "question": "Hoe lang denkt u dat het minderheidskabinet Jetten 1 het vol gaat houden? — Hoe lang denkt u dat Kabinet Jetten 1 het zal volhouden?", "date": "2026-02-23", "answers": [{"label": "Dagen", "votes": 238, "pct": 6.3}, {"label": "Weken", "votes": 780, "pct": 20.7}, {"label": "Maanden", "votes": 2225, "pct": 59.2}, {"label": "Jaren", "votes": 329, "pct": 8.8}, {"label": "Het kabinet zit de rit uit", "votes": 188, "pct": 5.0}], "total": 3760}, {"id": 173, "question": "Vindt u de toename van het aantal fracties rechts van de VVD een goede ontwikkeling?", "date": "2026-02-25", "answers": [{"label": "Ja meer keuze en concurrentie is positief", "votes": 575, "pct": 19.4}, {"label": "Nee afsplitsingen verzwakken rechts", "votes": 2395, "pct": 80.6}], "total": 2970}, {"id": 174, "question": "Denkt u er weleens over na om te emigreren uit Nederland?", "date": "2026-03-02", "answers": [{"label": "Nee ik blijf vechten voor Nederland", "votes": 1273, "pct": 36.6}, {"label": "Ja dit is mijn land niet meer", "votes": 2202, "pct": 63.4}], "total": 3475}, {"id": 175, "question": "Moeten de VS en Israël aansturen op regime change?", "date": "2026-03-04", "answers": [{"label": "Ja het is enige weg naar verandering", "votes": 1653, "pct": 69.7}, {"label": "Nee ieder land gaat over zijn eigen regering", "votes": 717, "pct": 30.3}], "total": 2370}, {"id": 176, "question": "Wat moet de Nederlandse overheid doen om de energieprijzen op korte termijn beheersbaar te houden?", "date": "2026-03-09", "answers": [{"label": "Niets laat de markt zijn werk doen", "votes": 63, "pct": 1.7}, {"label": "Burgers en bedrijven compenseren met subsidie en accijnsverlaging", "votes": 853, "pct": 22.9}, {"label": "Gaswinning in Groningen hervatten", "votes": 2200, "pct": 59.0}, {"label": "Gas kopen van Rusland", "votes": 610, "pct": 16.4}], "total": 3726}];
+
+const THEMAS = [
+  {id:"migratie",  label:"Migratie & Asiel",    kw:["asiel","immigr","azc","vluchtel","syri","grenscont","opvang"]},
+  {id:"oekraine",  label:"Oekraine & Oorlog",    kw:["oekra","front","rusland","navo","oorlog","mh17"]},
+  {id:"corona",    label:"Corona",               kw:["corona","vaccin","pandemie","oversterfte"]},
+  {id:"klimaat",   label:"Klimaat & Energie",    kw:["klimaat","energie","stikstof","gas","groningen","boer"]},
+  {id:"politiek",  label:"Politiek",             kw:["kabinet","wilders","verkiezing","coalitie","jetten","rutte","faber"]},
+  {id:"financien", label:"Financien",            kw:["belasting","pensioen","boodschap","inflat","prijs","koopkracht"]},
+  {id:"israel",    label:"Israel & Midden-Oost", kw:["isra","palestin","wapenembargo"]},
+  {id:"eu",        label:"EU & Soevereiniteit",  kw:["europese","nexit","verdrag","soeverein"]},
+  {id:"zorg",      label:"Zorg & Onderwijs",     kw:["zorg","onderwijs","school","dienstplicht"]},
+  {id:"vrijheid",  label:"Privacy & Vrijheid",   kw:["privacy","censuur","identificatieplicht"]},
+];
+
+const PROMPT = 'Je bent pollstrateeg voor Ongehoord Nederland. Genereer PRECIES 8 pollvragen die een VERDEELDE uitslag geven (35-65%) bij de rechts-conservatieve achterban. Verdeelde uitslag bij: trade-offs, persoonlijk gedrag vs principe, interne kritiek op rechts, pragmatisme vs ideologie. Geef ALLEEN dit JSON zonder markdown: {"analysis":"...","polls":[{"vraag":"...","antwoorden":["...","..."],"verdeling":"55% / 45%","label":"groen","uitleg":"..."}]} label: groen=verdeeld 40-60%, geel=mogelijk 60-80%, rood=eenzijdig 80%+';
+
+const nrm = s => s.toLowerCase().replace(/[ëéê]/g,"e").replace(/[ï]/g,"i").replace(/[ö]/g,"o").replace(/[ü]/g,"u").replace(/[ä]/g,"a");
+
+const LC = {groen:"#16a34a", geel:"#d97706", rood:"#dc2626"};
+const LB = {groen:"#f0fdf4", geel:"#fffbeb", rood:"#fef2f2"};
+const LT = {groen:"Waarschijnlijk verdeeld", geel:"Mogelijk verdeeld", rood:"Waarschijnlijk eenzijdig"};
+const LE = {groen:"Verdeeld", geel:"Mogelijk", rood:"Eenzijdig"};
+
+function related(topic) {
+  const ws = topic.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+  return DATA
+    .map(p => ({p, s: ws.reduce((s,w) => s + (p.question.toLowerCase().includes(w) ? 3 : 0), 0)}))
+    .filter(x => x.s > 0).sort((a,b) => b.s-a.s).slice(0,3).map(x => x.p);
+}
+
+function zoekPolls(q) {
+  const t = nrm(q.trim());
+  if (t.length < 2) return null;
+  return DATA
+    .filter(p => nrm(p.question).includes(t) || p.answers.some(a => nrm(a.label).includes(t)))
+    .map(p => ({...p, max: Math.max(...p.answers.map(a => a.pct))}))
+    .sort((a,b) => b.date.localeCompare(a.date));
+}
+
+function themaPolls(id) {
+  const t = THEMAS.find(t => t.id === id);
+  if (!t) return [];
+  return DATA
+    .filter(p => t.kw.some(k => nrm(p.question).includes(k)))
+    .map(p => ({...p, max: Math.max(...p.answers.map(a => a.pct))}));
+}
+
+// ── Styles ────────────────────────────────────────────────────────────────────
+const card = {background:"#fff", borderRadius:10, padding:"20px 22px", marginBottom:14, boxShadow:"0 1px 3px rgba(0,0,0,0.07)", border:"1px solid #eee"};
+const inp  = {width:"100%", background:"#fff", border:"1px solid #ddd", borderRadius:8, color:"#111", fontSize:14, padding:"10px 14px", fontFamily:"inherit", outline:"none", boxSizing:"border-box"};
+const btn  = {background:"#e8352a", color:"#fff", border:"none", borderRadius:8, padding:"10px 22px", fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:"inherit"};
+const gBtn = {background:"#fff", color:"#555", border:"1px solid #ddd", borderRadius:6, padding:"6px 12px", fontSize:12, cursor:"pointer", fontFamily:"inherit"};
+const tag  = a => ({background:a?"#e8352a":"#f4f4f4", color:a?"#fff":"#555", border:"none", borderRadius:20, padding:"5px 14px", fontSize:13, cursor:"pointer", fontFamily:"inherit", fontWeight:a?600:400});
+
+// ── Components ────────────────────────────────────────────────────────────────
+
+function Bars({answers, color}) {
+  return (
+    <div>
+      {answers.map((a,j) => (
+        <div key={j} style={{marginBottom:8}}>
+          <div style={{display:"flex", justifyContent:"space-between", marginBottom:3}}>
+            <span style={{fontSize:13, color:"#444", maxWidth:"80%"}}>{a.label}</span>
+            <span style={{fontSize:13, color:color, fontWeight:700}}>{a.pct}%</span>
+          </div>
+          <div style={{background:"#f0f0f0", borderRadius:4, height:7}}>
+            <div style={{width:a.pct+"%", height:"100%", background:color, borderRadius:4, opacity:j===0?1:0.5}}></div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function PollCard({poll}) {
+  const mx = Math.max(...poll.answers.map(a => a.pct));
+  const c  = mx < 65 ? "#16a34a" : mx < 80 ? "#d97706" : "#dc2626";
+  return (
+    <div style={{...card, borderLeft:"4px solid "+c}}>
+      <div style={{display:"flex", justifyContent:"space-between", marginBottom:6}}>
+        <span style={{fontSize:11, color:"#aaa"}}>{poll.date} &middot; {poll.total.toLocaleString()} stemmen</span>
+        <span style={{fontSize:11, color:c, fontWeight:600}}>{mx.toFixed(0)}% max</span>
+      </div>
+      <div style={{fontSize:14, color:"#111", fontWeight:600, lineHeight:1.4, marginBottom:10}}>{poll.question}</div>
+      <Bars answers={poll.answers} color={c}/>
+    </div>
+  );
+}
+
+function Themas({active, set}) {
+  return (
+    <div style={{display:"flex", flexWrap:"wrap", gap:8, marginBottom:20}}>
+      {THEMAS.map(t => (
+        <button key={t.id} onClick={() => set(active===t.id ? null : t.id)} style={tag(active===t.id)}>
+          {t.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ── Generator tab ─────────────────────────────────────────────────────────────
+
+function Generator() {
+  const [topic,   setTopic]   = useState("");
+  const [ctx,     setCtx]     = useState("");
+  const [loading, setLoading] = useState(false);
+  const [result,  setResult]  = useState(null);
+  const [error,   setError]   = useState(null);
+  const [rel,     setRel]     = useState([]);
+  const [open,    setOpen]    = useState(null);
+  const [refI,    setRefI]    = useState(null);
+  const [refTxt,  setRefTxt]  = useState({});
+  const [refLoad, setRefLoad] = useState(null);
+  const [fLoad,   setFLoad]   = useState(false);
+  const [fErr,    setFErr]    = useState(null);
+
+  async function go() {
+    if (!topic.trim()) return;
+    setLoading(true); setResult(null); setError(null); setOpen(null); setRefI(null);
+    setRel(related(topic));
+    try {
+      const r = await fetch("https://api.anthropic.com/v1/messages", {
+        method:"POST",
+        headers:{"Content-Type":"application/json","x-api-key":window._key||"","anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+        body:JSON.stringify({
+          model:"claude-sonnet-4-20250514",
+          max_tokens:2000,
+          system:PROMPT,
+          messages:[{role:"user", content:"Onderwerp: "+topic+(ctx.trim() ? "\n\nContext:\n"+ctx : "")}]
+        })
+      });
+      const d = await r.json();
+      const txt = d.content.map(b => b.text||"").join("");
+      setResult(JSON.parse(txt.replace(/```json|```/g,"").trim()));
+    } catch(e) {
+      setError("Genereren mislukt. Controleer je API-sleutel.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function refine(i, inst) {
+    const p = result.polls[i];
+    setRefLoad(i);
+    try {
+      const r = await fetch("https://api.anthropic.com/v1/messages", {
+        method:"POST",
+        headers:{"Content-Type":"application/json","x-api-key":window._key||"","anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+        body:JSON.stringify({
+          model:"claude-sonnet-4-20250514",
+          max_tokens:400,
+          system:'Pas een ON pollvraag aan. Geef ALLEEN dit JSON: {"vraag":"...","antwoorden":["...","..."],"verdeling":"55% / 45%","label":"groen","uitleg":"..."}',
+          messages:[{role:"user", content:"Vraag: "+p.vraag+"\nAntwoorden: "+p.antwoorden.join(" / ")+"\nInstructie: "+inst}]
+        })
+      });
+      const d = await r.json();
+      const upd = JSON.parse(d.content.map(b=>b.text||"").join("").replace(/```json|```/g,"").trim());
+      const ps = [...result.polls]; ps[i] = upd;
+      setResult({...result, polls:ps}); setRefI(null); setRefTxt(x=>({...x,[i]:""}));
+    } catch(e) {} finally { setRefLoad(null); }
+  }
+
+  async function onFile(e) {
+    const file = e.target.files[0]; if (!file) return;
+    setFLoad(true); setFErr(null);
+    try {
+      const ext = file.name.split(".").pop().toLowerCase();
+      if (ext==="txt") {
+        setCtx((await file.text()).slice(0,8000));
+      } else if (ext==="pdf") {
+        const b64 = await new Promise((res,rej) => {
+          const rd = new FileReader();
+          rd.onload = () => res(rd.result.split(",")[1]);
+          rd.onerror = rej;
+          rd.readAsDataURL(file);
+        });
+        const r = await fetch("https://api.anthropic.com/v1/messages", {
+          method:"POST",
+          headers:{"Content-Type":"application/json","x-api-key":window._key||"","anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+          body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,
+            messages:[{role:"user",content:[
+              {type:"document",source:{type:"base64",media_type:"application/pdf",data:b64}},
+              {type:"text",text:"Geef de tekst terug."}
+            ]}]})
+        });
+        const d = await r.json();
+        setCtx(d.content.map(b=>b.text||"").join("").slice(0,8000));
+      } else if (ext==="docx" || ext==="doc") {
+        if (!window.mammoth) {
+          await new Promise((res,rej) => {
+            const s = document.createElement("script");
+            s.src = "https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js";
+            s.onload = res; s.onerror = rej;
+            document.head.appendChild(s);
+          });
+        }
+        const r = await window.mammoth.extractRawText({arrayBuffer: await file.arrayBuffer()});
+        setCtx(r.value.slice(0,8000));
+      } else {
+        setFErr("Gebruik PDF, Word of TXT.");
+      }
+    } catch(e) {
+      setFErr("Kan bestand niet inlezen.");
+    } finally {
+      setFLoad(false); e.target.value = "";
+    }
+  }
+
+  const SNEL = ["Maak neutraler","Maak scherper","Voeg derde antwoord toe","Persoonlijke vraag","Meer verdeeld","Meerkeuze"];
+  const lbl = {fontSize:12, fontWeight:600, color:"#666", marginBottom:6, display:"block"};
+
+  return (
+    <div style={{display:"grid", gridTemplateColumns:rel.length ? "1fr 300px" : "1fr", gap:20, alignItems:"start"}}>
+      <div>
+        <div style={card}>
+          <label style={lbl}>Onderwerp of actualiteit</label>
+          <div style={{display:"flex", gap:10, marginBottom:16}}>
+            <textarea
+              value={topic}
+              onChange={e => setTopic(e.target.value)}
+              onKeyDown={e => { if (e.key==="Enter" && !e.shiftKey) { e.preventDefault(); go(); }}}
+              placeholder="Bijv: energieprijzen, kabinet Jetten, NAVO-bijdrage..."
+              rows={2}
+              style={{...inp, flex:1, resize:"none", lineHeight:1.5}}
+            />
+            <button
+              onClick={go}
+              disabled={loading || !topic.trim()}
+              style={{...btn, opacity: loading||!topic.trim() ? 0.5 : 1, cursor: loading||!topic.trim() ? "not-allowed" : "pointer"}}
+            >
+              {loading ? "Laden..." : "Genereer"}
+            </button>
+          </div>
+
+          <label style={lbl}>Nieuwscontext <span style={{fontWeight:400, color:"#bbb"}}>- optioneel</span></label>
+          <div style={{position:"relative", marginBottom:8}}>
+            <textarea
+              value={ctx}
+              onChange={e => setCtx(e.target.value)}
+              rows={3}
+              placeholder="Plak een nieuwsbericht voor meer gerichte pollvragen..."
+              style={{...inp, lineHeight:1.5, resize:"vertical", paddingRight:36}}
+            />
+            {ctx && (
+              <button onClick={() => { setCtx(""); setFErr(null); }} style={{position:"absolute",top:8,right:10,background:"none",border:"none",color:"#ccc",fontSize:18,cursor:"pointer",lineHeight:1}}>
+                x
+              </button>
+            )}
+          </div>
+          <div style={{display:"flex", alignItems:"center", gap:10}}>
+            <label style={{background:"#f5f5f5",border:"1px solid #e0e0e0",borderRadius:6,padding:"5px 12px",fontSize:12,color:fLoad?"#bbb":"#555",cursor:"pointer"}}>
+              {fLoad ? "Laden..." : "Bestand uploaden (PDF/Word)"}
+              <input type="file" accept=".pdf,.doc,.docx,.txt" style={{display:"none"}} disabled={fLoad} onChange={onFile}/>
+            </label>
+            {fErr && <span style={{fontSize:12,color:"#dc2626"}}>{fErr}</span>}
+            {ctx && <span style={{fontSize:12,color:"#bbb"}}>{ctx.length.toLocaleString()} tekens</span>}
+          </div>
+        </div>
+
+        {error && (
+          <div style={{background:"#fef2f2",border:"1px solid #fca5a5",borderRadius:8,padding:"12px 16px",color:"#dc2626",fontSize:14,marginBottom:14}}>
+            {error}
+          </div>
+        )}
+
+        {loading && (
+          <div style={{...card, textAlign:"center", padding:"40px"}}>
+            <div style={{fontSize:14, color:"#888", marginBottom:4}}>Pollvragen genereren...</div>
+            <div style={{fontSize:12, color:"#bbb"}}>Dit duurt 10-20 seconden</div>
+          </div>
+        )}
+
+        {!result && !loading && !error && (
+          <div style={{...card, textAlign:"center", padding:"40px", background:"#fafafa", border:"2px dashed #e8e8e8", boxShadow:"none"}}>
+            <div style={{fontSize:32, marginBottom:8}}>📊</div>
+            <div style={{fontSize:15, color:"#999", fontWeight:600}}>Voer een onderwerp in en klik Genereer</div>
+          </div>
+        )}
+
+        {result && (
+          <div>
+            <div style={{...card, background:"#fffbf0", borderLeft:"4px solid #f59e0b", border:"1px solid #fde68a"}}>
+              <div style={{fontSize:11, fontWeight:700, color:"#92400e", textTransform:"uppercase", letterSpacing:1, marginBottom:4}}>Analyse</div>
+              <div style={{fontSize:14, color:"#78350f", lineHeight:1.6}}>{result.analysis}</div>
+            </div>
+
+            {result.polls && result.polls.map((poll, i) => {
+              const lbl2 = poll.label || "geel";
+              const isRef = refI === i;
+              return (
+                <div key={i} style={{...card, borderLeft:"4px solid "+LC[lbl2]}}>
+                  <div style={{display:"flex", gap:10, alignItems:"flex-start", marginBottom:10}}>
+                    <span style={{background:"#f0f0f0", color:"#666", fontSize:12, fontWeight:700, padding:"3px 8px", borderRadius:5, marginTop:2}}>#{i+1}</span>
+                    <h3 style={{margin:0, fontSize:15, fontWeight:700, color:"#111", lineHeight:1.4, flex:1}}>{poll.vraag}</h3>
+                  </div>
+                  <div style={{display:"flex", flexWrap:"wrap", gap:7, marginBottom:10, paddingLeft:36}}>
+                    {poll.antwoorden && poll.antwoorden.map((a,j) => (
+                      <span key={j} style={{background:j===0?"#eff6ff":"#f9fafb", border:"1px solid "+(j===0?"#bfdbfe":"#e5e7eb"), color:j===0?"#1d4ed8":"#374151", padding:"4px 12px", fontSize:13, borderRadius:16}}>
+                        {a}
+                      </span>
+                    ))}
+                  </div>
+                  <div style={{paddingLeft:36, display:"flex", alignItems:"center", gap:8, marginBottom:8}}>
+                    <span style={{background:LB[lbl2], color:LC[lbl2], fontSize:13, fontWeight:600, padding:"3px 10px", borderRadius:16}}>
+                      {poll.verdeling || poll.verwachte_verdeling || ""}
+                    </span>
+                    <span style={{fontSize:12, color:"#aaa"}}>{LT[lbl2]||""}</span>
+                  </div>
+                  <div style={{paddingLeft:36, marginBottom:8}}>
+                    <button onClick={() => setOpen(open===i ? null : i)} style={gBtn}>
+                      {open===i ? "Verberg toelichting" : "Toon toelichting"}
+                    </button>
+                    {open===i && (
+                      <div style={{background:"#f9fafb", borderRadius:8, padding:"12px", fontSize:13, color:"#555", lineHeight:1.7, marginTop:8}}>
+                        <strong>Waarom verdeeld? </strong>{poll.uitleg}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{paddingLeft:36, borderTop:"1px solid #f0f0f0", paddingTop:10}}>
+                    {!isRef && (
+                      <button onClick={() => { setRefI(i); setOpen(null); }} style={{...gBtn, color:"#e8352a", borderColor:"#fca5a5"}}>
+                        Pas vraag aan
+                      </button>
+                    )}
+                    {isRef && (
+                      <div>
+                        <div style={{fontSize:12, fontWeight:600, color:"#888", marginBottom:8}}>Verfijn deze vraag:</div>
+                        <div style={{display:"flex", flexWrap:"wrap", gap:6, marginBottom:8}}>
+                          {SNEL.map(opt => (
+                            <button key={opt} onClick={() => refine(i,opt)} disabled={refLoad===i} style={gBtn}>{opt}</button>
+                          ))}
+                        </div>
+                        <div style={{display:"flex", gap:8}}>
+                          <input
+                            value={refTxt[i]||""}
+                            onChange={e => setRefTxt(x => ({...x,[i]:e.target.value}))}
+                            onKeyDown={e => { if (e.key==="Enter" && refTxt[i]?.trim()) refine(i,refTxt[i]); }}
+                            placeholder="Eigen instructie..."
+                            disabled={refLoad===i}
+                            style={{...inp, flex:1, padding:"7px 12px"}}
+                          />
+                          <button
+                            onClick={() => refTxt[i]?.trim() && refine(i,refTxt[i])}
+                            disabled={refLoad===i || !refTxt[i]?.trim()}
+                            style={{...btn, opacity:refLoad===i||!refTxt[i]?.trim()?0.5:1, padding:"7px 16px", fontSize:13}}
+                          >
+                            {refLoad===i ? "..." : "Toepassen"}
+                          </button>
+                          <button onClick={() => { setRefI(null); setRefTxt(x=>({...x,[i]:""})); }} style={gBtn}>
+                            Annuleer
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {rel.length > 0 && (
+        <div>
+          <div style={{fontSize:12, fontWeight:700, color:"#aaa", textTransform:"uppercase", letterSpacing:1, marginBottom:10}}>Eerder gesteld</div>
+          {rel.map(poll => <PollCard key={poll.id} poll={poll}/>)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Archief tab ───────────────────────────────────────────────────────────────
+
+function Archief() {
+  const [thema, setThema] = useState(null);
+  const [zoek,  setZoek]  = useState("");
+
+  const withMax   = DATA.map(p => ({...p, max:Math.max(...p.answers.map(a=>a.pct))}));
+  const zoekRes   = zoekPolls(zoek);
+  const tPolls    = thema ? themaPolls(thema) : [];
+  const verdeeld  = [...withMax].sort((a,b) => a.max-b.max).slice(0,20);
+  const eenzijdig = [...withMax].sort((a,b) => b.max-a.max).slice(0,20);
+
+  return (
+    <div>
+      <div style={{...card, marginBottom:16}}>
+        <div style={{position:"relative"}}>
+          <input
+            value={zoek}
+            onChange={e => { setZoek(e.target.value); setThema(null); }}
+            placeholder="Zoek op trefwoord..."
+            style={{...inp, paddingLeft:36}}
+            onFocus={e => e.target.style.borderColor="#e8352a"}
+            onBlur={e => e.target.style.borderColor="#ddd"}
+          />
+          <span style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",color:"#bbb",pointerEvents:"none"}}>🔍</span>
+          {zoek && (
+            <button onClick={() => setZoek("")} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:"#bbb",fontSize:16,cursor:"pointer"}}>
+              x
+            </button>
+          )}
+        </div>
+        {zoekRes && <div style={{fontSize:13,color:"#888",marginTop:8}}>{zoekRes.length} resultaten voor "{zoek}"</div>}
+      </div>
+
+      {zoekRes ? (
+        zoekRes.length === 0
+          ? <div style={{textAlign:"center",padding:40,color:"#bbb"}}>Geen polls gevonden.</div>
+          : <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+              {zoekRes.map(p => <PollCard key={p.id} poll={p}/>)}
+            </div>
+      ) : (
+        <div>
+          <Themas active={thema} set={setThema}/>
+          {thema && tPolls.length > 0 && (
+            <div>
+              <div style={{fontSize:13,fontWeight:600,color:"#666",marginBottom:14}}>
+                {THEMAS.find(t=>t.id===thema)?.label} &mdash; {tPolls.length} polls
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+                {tPolls.sort((a,b)=>a.max-b.max).map(p => <PollCard key={p.id} poll={p}/>)}
+              </div>
+            </div>
+          )}
+          {thema && tPolls.length === 0 && (
+            <div style={{textAlign:"center",padding:40,color:"#bbb"}}>Geen polls gevonden voor dit thema.</div>
+          )}
+          {!thema && (
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:24}}>
+              <div>
+                <div style={{fontSize:13,fontWeight:700,color:"#16a34a",marginBottom:14}}>Meest verdeeld</div>
+                {verdeeld.map(p => <PollCard key={p.id} poll={p}/>)}
+              </div>
+              <div>
+                <div style={{fontSize:13,fontWeight:700,color:"#dc2626",marginBottom:14}}>Meest eenzijdig</div>
+                {eenzijdig.map(p => <PollCard key={p.id} poll={p}/>)}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Opkomst tab ───────────────────────────────────────────────────────────────
+
+function Opkomst() {
+  const [thema, setThema] = useState(null);
+  const recent   = DATA.filter(p => p.date >= "2024-01-01");
+  const filtered = thema ? themaPolls(thema).filter(p => p.date >= "2024-01-01") : recent;
+  const meeste   = [...filtered].sort((a,b) => b.total-a.total).slice(0,10);
+  const minste   = [...filtered].filter(p => p.total > 50).sort((a,b) => a.total-b.total).slice(0,10);
+  const sub      = thema ? " - "+THEMAS.find(t=>t.id===thema)?.label : "";
+
+  return (
+    <div>
+      <Themas active={thema} set={setThema}/>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:24}}>
+        <div>
+          <div style={{fontSize:13,fontWeight:700,color:"#d97706",marginBottom:4}}>Meeste stemmen</div>
+          <div style={{fontSize:12,color:"#bbb",marginBottom:14}}>2024-2026{sub}</div>
+          {meeste.length > 0 ? meeste.map(p => (
+            <div key={p.id} style={{...card,borderLeft:"4px solid #f59e0b"}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                <span style={{fontSize:11,color:"#aaa"}}>{p.date}</span>
+                <span style={{fontSize:14,fontWeight:700,color:"#d97706"}}>{p.total.toLocaleString()} stemmen</span>
+              </div>
+              <div style={{fontSize:14,color:"#111",fontWeight:600,lineHeight:1.4,marginBottom:10}}>{p.question}</div>
+              <Bars answers={p.answers} color="#f59e0b"/>
+            </div>
+          )) : <div style={{color:"#bbb",fontSize:13}}>Geen polls gevonden.</div>}
+        </div>
+        <div>
+          <div style={{fontSize:13,fontWeight:700,color:"#6b7280",marginBottom:4}}>Minste stemmen</div>
+          <div style={{fontSize:12,color:"#bbb",marginBottom:14}}>2024-2026{sub}</div>
+          {minste.length > 0 ? minste.map(p => (
+            <div key={p.id} style={{...card,borderLeft:"4px solid #d1d5db"}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                <span style={{fontSize:11,color:"#aaa"}}>{p.date}</span>
+                <span style={{fontSize:14,fontWeight:700,color:"#6b7280"}}>{p.total.toLocaleString()} stemmen</span>
+              </div>
+              <div style={{fontSize:14,color:"#111",fontWeight:600,lineHeight:1.4,marginBottom:10}}>{p.question}</div>
+              <Bars answers={p.answers} color="#9ca3af"/>
+            </div>
+          )) : <div style={{color:"#bbb",fontSize:13}}>Geen polls gevonden.</div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── App ───────────────────────────────────────────────────────────────────────
+
+function App() {
+  const [tab, setTab] = useState("generator");
+  const TABS = [
+    {id:"generator", label:"Poll genereren"},
+    {id:"archief",   label:"Archief"},
+    {id:"opkomst",   label:"Opkomst"},
+  ];
+  return (
+    <div style={{minHeight:"100vh", background:"#f6f6f6", fontFamily:"system-ui,-apple-system,sans-serif", color:"#111"}}>
+      <div style={{background:"#e8352a"}}>
+        <div style={{padding:"18px 32px 0"}}>
+          <div style={{fontSize:11,letterSpacing:2,textTransform:"uppercase",color:"rgba(255,255,255,0.7)",marginBottom:4}}>
+            Ongehoord Nederland
+          </div>
+          <h1 style={{margin:0,fontSize:24,fontWeight:800,color:"#fff",marginBottom:14}}>
+            PollGenerator
+          </h1>
+          <div style={{display:"flex",gap:4}}>
+            {TABS.map(t => (
+              <button key={t.id} onClick={() => setTab(t.id)} style={{
+                background: tab===t.id ? "#fff" : "transparent",
+                color: tab===t.id ? "#e8352a" : "rgba(255,255,255,0.85)",
+                border:"none", borderRadius:"7px 7px 0 0",
+                padding:"9px 18px", fontSize:13,
+                fontWeight: tab===t.id ? 700 : 500,
+                cursor:"pointer", fontFamily:"inherit"
+              }}>{t.label}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div style={{padding:"24px 32px", maxWidth:960, margin:"0 auto"}}>
+        {tab==="generator" && <Generator/>}
+        {tab==="archief"   && <Archief/>}
+        {tab==="opkomst"   && <Opkomst/>}
+      </div>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App/>);
+</script>
+</body>
+</html>
